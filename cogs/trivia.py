@@ -246,7 +246,10 @@ class TriviaSession():
         self.status = "waiting for answer"
         self.count += 1
         self.timer = int(time.perf_counter())
+        self.hint = 0
         msg = "**Question number {}!**\n\n{}".format(self.count, self.current_line.question)
+        answer = self.current_line.answers[0]
+        anslen = len(answer)
         await self.bot.say(msg)
 
         while self.status != "correct answer" and abs(self.timer - int(time.perf_counter())) <= self.settings["DELAY"]:
@@ -254,6 +257,18 @@ class TriviaSession():
                 await self.bot.say("Guys...? Well, I guess I'll stop then.")
                 await self.stop_trivia()
                 return True
+
+            if self.status == "stop":
+                return True
+            elif abs(self.timer - int(time.perf_counter())) >= (self.settings["DELAY"] / 3) and self.hint == 0:
+                self.hint = 1
+                await self.bot.say("Here's first hint: `{}{}`"\
+                    .format(answer[:1], "-" * (anslen - 1)))
+            elif abs(self.timer - int(time.perf_counter())) >= (self.settings["DELAY"] * 2 / 3) and self.hint == 1:
+                self.hint = 2
+                await self.bot.say("Here's second hint: `{}{}`"\
+                    .format(answer[:int(anslen / 2)], "-" * (anslen - int(anslen / 2))))
+
             await asyncio.sleep(1) #Waiting for an answer or for the time limit
         if self.status == "correct answer":
             self.status = "new question"
