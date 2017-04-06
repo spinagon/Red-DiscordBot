@@ -192,7 +192,6 @@ class Trivia:
                 if b"`" not in line:
                     continue
                 parsed_list.append(line_start)
-            print(parsed_list)
             s.close()
 
         if not parsed_list:
