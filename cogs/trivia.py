@@ -19,6 +19,24 @@ DEFAULTS = {"MAX_SCORE"    : 10,
 TriviaLine = namedtuple("Question", "question answers")
 
 
+class QuestionList(list):
+    def __init__(self, path, encoding):
+        self.path = path
+        self.encoding = encoding
+
+    def parse_line(self, line_start):
+        with open(self.path, "r", encoding=self.encoding) as f:
+            f.seek(line_start)
+            line = f.readline()
+            line = line.replace("\n", "")
+            line = line.split("`")
+            question = line[0]
+            answers = []
+            for l in line[1:]:
+                answers.append(l.strip())
+            return TriviaLine(question=question, answers=answers)
+
+
 class Trivia:
     """General commands."""
     def __init__(self, bot):
@@ -153,29 +171,24 @@ class Trivia:
 
     def parse_trivia_list(self, filename):
         path = "data/trivia/{}.txt".format(filename)
-        parsed_list = []
 
         with open(path, "rb") as f:
             try:
-                encoding = chardet.detect(f.read())["encoding"]
+                encoding = chardet.detect(f.read(10000))["encoding"]
             except:
                 encoding = "ISO-8859-1"
 
-        with open(path, "r", encoding=encoding) as f:
-            trivia_list = f.readlines()
+        parsed_list = QuestionList(path, encoding)
 
-        for line in trivia_list:
-            if "`" not in line:
-                continue
-            line = line.replace("\n", "")
-            line = line.split("`")
-            question = line[0]
-            answers = []
-            for l in line[1:]:
-                answers.append(l.strip())
-            if len(line) >= 2 and question and answers:
-                line = TriviaLine(question=question, answers=answers)
-                parsed_list.append(line)
+        with open(path, "r", encoding=encoding) as f:
+            line = " "
+            line_start = 0
+            while line:
+                line = f.readline()
+                if "`" not in line:
+                    continue
+                parsed_list.append(line_start)
+                line_start = f.tell()
 
         if not parsed_list:
             raise ValueError("Empty trivia list")
@@ -241,8 +254,9 @@ class TriviaSession():
         if self.question_list == []:
             await self.end_game()
             return True
-        self.current_line = choice(self.question_list)
-        self.question_list.remove(self.current_line)
+        self.current_line_start = choice(self.question_list)
+        self.current_line = self.question_list.parse_line(self.current_line_start)
+        self.question_list.remove(self.current_line_start)
         self.status = "waiting for answer"
         self.count += 1
         self.timer = int(time.perf_counter())
