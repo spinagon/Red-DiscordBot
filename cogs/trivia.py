@@ -9,6 +9,7 @@ import time
 import os
 import asyncio
 import chardet
+import mmap
 
 DEFAULTS = {"MAX_SCORE"    : 10,
             "TIMEOUT"      : 120,
@@ -181,14 +182,18 @@ class Trivia:
         parsed_list = QuestionList(path, encoding)
 
         with open(path, "r", encoding=encoding) as f:
-            line = " "
-            line_start = 0
+            s = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+            line = b" "
+            line_end = 0
             while line:
-                line = f.readline()
-                if "`" not in line:
+                line_start = line_end
+                line_end = s.find(b"\n", line_start + 1) + 1
+                line = s[line_start:line_end]
+                if b"`" not in line:
                     continue
                 parsed_list.append(line_start)
-                line_start = f.tell()
+            print(parsed_list)
+            s.close()
 
         if not parsed_list:
             raise ValueError("Empty trivia list")
